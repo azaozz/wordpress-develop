@@ -8703,7 +8703,7 @@ function clean_dirsize_cache( $path ) {
 }
 
 /**
- * Checks compatibility with the current WordPress version.
+ * Checks whether the current WordPress version meets the minimum requirements.
  *
  * @since 5.2.0
  *
@@ -8719,6 +8719,48 @@ function is_wp_version_compatible( $required ) {
 	list( $version ) = explode( '-', $wp_version );
 
 	return empty( $required ) || version_compare( $version, $required, '>=' );
+}
+
+/**
+ * Checks whether the current WordPress version meets the maximum requirements.
+ *
+ * @since 6.5.0
+ *
+ * @global string $wp_version The WordPress version string.
+ *
+ * @param string $required Maximum supported WordPress version.
+ * @return bool True if required version is compatible or empty, false if not.
+ */
+function is_max_wp_version_compatible( $required ) {
+	global $wp_version;
+
+	if ( empty( $required ) || ! is_string( $required ) ) {
+		return true;
+	}
+
+	// Ensure $required matches the expected format of a major WP version.
+	if ( strlen( $required ) !== 3 ) {
+		if ( preg_match( '/^\d\.\d/', $required, $matches ) ) {
+			$required = $matches[0];
+		} else {
+			// Invalid version string.
+			return true;
+		}
+	}
+
+	// Strip off -src from $wp_version.
+	$version = str_replace( '-src', '', (string) $wp_version );
+
+	/*
+	 * Note that `version_compare()` considers 1 < 1.0 < 1.0.0 (before suffixes).
+	 * Then 6.0 < 6.0.0-alpha and 6.0-beta < 6.0.0-alpha are both true.
+	 * To work around possible problems when comparing with WP development version strings
+	 * the $required version is incremented by one and the comparisons are with `<`.
+	 */
+	$required = (float) $required + 0.1;
+
+	// `version_compare()` expects strings.
+	return version_compare( $version, (string) $required, '<' );
 }
 
 /**

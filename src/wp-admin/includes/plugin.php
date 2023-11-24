@@ -84,6 +84,7 @@ function get_plugin_data( $plugin_file, $markup = true, $translate = true ) {
 		'RequiresWP'  => 'Requires at least',
 		'RequiresPHP' => 'Requires PHP',
 		'UpdateURI'   => 'Update URI',
+		'MaximumWP'   => 'Maximum WP version',
 		// Site Wide Only is deprecated in favor of Network.
 		'_sitewide'   => 'Site Wide Only',
 	);
@@ -1128,11 +1129,13 @@ function validate_plugin_requirements( $plugin ) {
 	$plugin_headers = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
 
 	$requirements = array(
-		'requires'     => ! empty( $plugin_headers['RequiresWP'] ) ? $plugin_headers['RequiresWP'] : '',
-		'requires_php' => ! empty( $plugin_headers['RequiresPHP'] ) ? $plugin_headers['RequiresPHP'] : '',
+		'min_wp_version' => ! empty( $plugin_headers['RequiresWP'] ) ? $plugin_headers['RequiresWP'] : '',
+		'max_wp_version' => ! empty( $plugin_headers['MaximumWP'] ) ? $plugin_headers['MaximumWP'] : '',
+		'requires_php'   => ! empty( $plugin_headers['RequiresPHP'] ) ? $plugin_headers['RequiresPHP'] : '',
 	);
 
-	$compatible_wp  = is_wp_version_compatible( $requirements['requires'] );
+	$min_wp_version = is_wp_version_compatible( $requirements['min_wp_version'] );
+	$max_wp_version = is_max_wp_version_compatible( $requirements['max_wp_version'] );
 	$compatible_php = is_php_version_compatible( $requirements['requires_php'] );
 
 	$php_update_message = '</p><p>' . sprintf(
@@ -1147,7 +1150,7 @@ function validate_plugin_requirements( $plugin ) {
 		$php_update_message .= '</p><p><em>' . $annotation . '</em>';
 	}
 
-	if ( ! $compatible_wp && ! $compatible_php ) {
+	if ( ! $min_wp_version && ! $compatible_php ) {
 		return new WP_Error(
 			'plugin_wp_php_incompatible',
 			'<p>' . sprintf(
@@ -1156,7 +1159,7 @@ function validate_plugin_requirements( $plugin ) {
 				get_bloginfo( 'version' ),
 				PHP_VERSION,
 				$plugin_headers['Name'],
-				$requirements['requires'],
+				$requirements['min_wp_version'],
 				$requirements['requires_php']
 			) . $php_update_message . '</p>'
 		);
@@ -1171,15 +1174,26 @@ function validate_plugin_requirements( $plugin ) {
 				$requirements['requires_php']
 			) . $php_update_message . '</p>'
 		);
-	} elseif ( ! $compatible_wp ) {
+	} elseif ( ! $min_wp_version ) {
 		return new WP_Error(
 			'plugin_wp_incompatible',
 			'<p>' . sprintf(
-				/* translators: 1: Current WordPress version, 2: Plugin name, 3: Required WordPress version. */
-				_x( '<strong>Error:</strong> Current WordPress version (%1$s) does not meet minimum requirements for %2$s. The plugin requires WordPress %3$s.', 'plugin' ),
+				/* translators: 1: Current WordPress version, 2: Plugin name, 3: Required minimum WordPress version. */
+				_x( '<strong>Error:</strong> Current WordPress version (%1$s) does not meet the minimum required version for %2$s. The plugin requires WordPress %3$s.', 'plugin' ),
 				get_bloginfo( 'version' ),
 				$plugin_headers['Name'],
-				$requirements['requires']
+				$requirements['min_wp_version']
+			) . '</p>'
+		);
+	} elseif ( ! $max_wp_version ) {
+		return new WP_Error(
+			'plugin_max_wp_version_incompatible',
+			'<p>' . sprintf(
+				/* translators: 1: Current WordPress version, 2: Plugin name, 3: Supported maximum WordPress version. */
+				_x( '<strong>Error:</strong> Current WordPress version (%1$s) exceeds the maximum supported version for %2$s. The plugin supports up to WordPress %3$s.', 'plugin' ),
+				get_bloginfo( 'version' ),
+				$plugin_headers['Name'],
+				$requirements['max_wp_version']
 			) . '</p>'
 		);
 	}
